@@ -56,7 +56,6 @@ namespace target_tracker
   void Target::setActive(bool state)
   {
     active_ = state;
-    ROS_WARN_STREAM(active_);
   }
 
 } /* namespace target_tracker */

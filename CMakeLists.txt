@@ -16,5 +16,12 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-rosbuild_add_executable(${PROJECT_NAME} src/target_tracker.cpp)
+rosbuild_add_library(${PROJECT_NAME}
+  src/target_visualizer.cpp
+  src/target.cpp
+  )
+rosbuild_add_executable(tracker src/target_tracker.cpp)
+target_link_libraries(tracker ${PROJECT_NAME})
+

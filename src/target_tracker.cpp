@@ -29,6 +29,132 @@
 
 /* Author: Mikhail Medvedev */
 
-int main(int argc, char ** argv) {
-    return 0;
+#include <vector>
+
+#include <ros/ros.h>
+#include <geometry_msgs/PoseArray.h>
+#include <tf/transform_listener.h>
+
+#include "target.h"
+#include "target_visualizer.h"
+
+namespace target_tracker
+{
+/**
+ * Given a list of targets on the plane, track which ones have been reached.
+ * Publish the PoseArray message containing the targets that are still
+ * active. The targets are transformed into base_frame_id frame.
+ */
+
+class TargetTracker
+{
+
+public:
+  TargetTracker();
+  void loadTargets();
+  void update();
+
+protected:
+  Target::vector targets_;
+  TargetVisualizer vis_;
+  tf::TransformListener tf_listener_;
+  std::string map_frame_id_;
+  std::string base_frame_id_;
+  ros::NodeHandle nh_;
+  ros::Publisher pub_;
+};
+
+}
+/// namespace target_tracker
+
+int main(int argc, char ** argv)
+{
+  ros::init(argc, argv, "target_tracker");
+  target_tracker::TargetTracker _tt;
+  ros::Rate r(10);
+  while (ros::ok())
+  {
+    _tt.update();
+    ros::spinOnce();
+    r.sleep();
+  }
+  return 0;
+}
+
+namespace target_tracker
+{
+
+TargetTracker::TargetTracker() :
+    pub_(nh_.advertise<geometry_msgs::PoseArray>("/target_poses", 5))
+{
+  ros::NodeHandle private_nh("~");
+  private_nh.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
+  private_nh.param("map_frame_id", map_frame_id_, (std::string)"/map");
+
+  while (!tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
+                                        ros::Time::now(), ros::Duration(1.0)))
+  {
+    ROS_INFO_STREAM(
+        "Waiting for transform "<<map_frame_id_<<"->"<<base_frame_id_<<".");
+  }
+  ROS_INFO("Transform ok.");
+
+  loadTargets();
+}
+
+void TargetTracker::loadTargets()
+{
+// TODO: load from the parameters or file
+  targets_ =
+  {
+    Target(10, 5, 5)
+    ,Target(13,-1)
+  };
+  vis_.setTargets(&targets_);
+}
+
+inline double magnitude(geometry_msgs::Point point)
+{
+  return sqrt(pow(point.x, 2) + pow(point.y, 2) + pow(point.z, 2));
+}
+
+void TargetTracker::update()
+{
+  geometry_msgs::PoseStamped base_pose;
+  base_pose.header.stamp = ros::Time::now();
+
+  geometry_msgs::PoseArray targets_in_base_frame;
+  targets_in_base_frame.header.stamp = base_pose.header.stamp;
+  targets_in_base_frame.header.frame_id = base_frame_id_;
+
+  geometry_msgs::PoseStamped map_pose;
+  map_pose.header.frame_id = map_frame_id_;
+  try
+  {
+    tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
+                                  ros::Time::now(), ros::Duration(0.5));
+
+    for (auto target = targets_.begin(); target != targets_.end(); ++target)
+    { // Transform target poses into base frame
+      if (target->isActive())
+      {
+        map_pose.pose = target->getPose();
+        tf_listener_.transformPose(base_frame_id_, map_pose, base_pose);
+        targets_in_base_frame.poses.push_back(base_pose.pose);
+        if (magnitude(base_pose.pose.position) < target->radius_)
+        {
+          target->setActive(false);
+        }
+      }
+    }
+    pub_.publish(targets_in_base_frame);
+  }
+  catch (tf::TransformException &ex)
+  {
+    ROS_ERROR("%s", ex.what());
+    return;
+  }
+
+  vis_.publish();
+}
 }
