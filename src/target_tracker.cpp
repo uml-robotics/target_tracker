@@ -34,6 +34,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
 #include <tf/transform_listener.h>
+#include <XmlRpcException.h>
 
 #include "target.h"
 #include "target_visualizer.h"
@@ -51,7 +52,7 @@ class TargetTracker
 
 public:
   TargetTracker();
-  void loadTargets();
+  void loadTargets(std::string targets_parameter_name = "targets");
   void update();
 
 protected:
@@ -102,14 +103,51 @@ TargetTracker::TargetTracker() :
   loadTargets();
 }
 
-void TargetTracker::loadTargets()
+/**
+ * Load targets from parameter server.
+ * @param targets_parameter_name
+ */
+void TargetTracker::loadTargets(std::string targets_parameter_name)
 {
-// TODO: load from the parameters or file
-  targets_ =
+  ros::NodeHandle private_nh("~");
+  if (private_nh.hasParam(targets_parameter_name))
   {
-    Target(10, 5, 5)
-    ,Target(13,-1)
-  };
+    try
+    {
+      ROS_INFO_STREAM(
+          "Loading targets from '"<< targets_parameter_name <<"' parameter.");
+      XmlRpc::XmlRpcValue value;
+      private_nh.getParam(targets_parameter_name, value);
+      ROS_ASSERT(value.getType() == XmlRpc::XmlRpcValue::TypeArray);
+
+      for (int i = 0; i < value.size(); i++)
+      {
+        ROS_ASSERT(value[i].getType() == XmlRpc::XmlRpcValue::TypeArray);
+        if (value[i].size() == 3)
+        {
+          XmlRpc::XmlRpcValue v = value[i];
+          ROS_ASSERT(v[0].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+          ROS_ASSERT(v[1].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+          ROS_ASSERT(v[2].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+          targets_.push_back(Target(v[0], v[1], v[2]));
+        }
+        else
+        {
+          ROS_WARN_STREAM(
+              "Skipping incomplete target on line " << i <<", only found " << value[i].size()<<" elements (3 expected)");
+        }
+      }
+    }
+    catch (XmlRpc::XmlRpcException & ex)
+    {
+      ROS_ERROR_STREAM("Error parsing parameter: "<<ex.getMessage());
+    }
+  }
+  else
+  {
+    ROS_WARN_STREAM(
+        "Parameter '"<< targets_parameter_name <<"' not found, no targets were loaded.");
+  }
   vis_.setTargets(&targets_);
 }
 
