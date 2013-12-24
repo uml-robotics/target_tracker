@@ -73,7 +73,7 @@ int main(int argc, char ** argv)
   ros::init(argc, argv, "target_tracker");
   target_tracker::TargetTracker _tt;
   ros::Rate r(10);
-  while (ros::ok())
+  while (ros::ok() && ! ros::isShuttingDown())
   {
     _tt.update();
     ros::spinOnce();
@@ -92,7 +92,9 @@ TargetTracker::TargetTracker() :
   private_nh.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
   private_nh.param("map_frame_id", map_frame_id_, (std::string)"/map");
 
-  while (!tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
+  while (
+      ros::ok() && ! ros::isShuttingDown() &&
+      !tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
                                         ros::Time::now(), ros::Duration(1.0)))
   {
     ROS_INFO_STREAM(
