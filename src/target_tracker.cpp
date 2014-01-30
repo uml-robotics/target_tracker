@@ -63,6 +63,9 @@ protected:
   std::string base_frame_id_;
   ros::NodeHandle nh_;
   ros::Publisher pub_;
+  ros::Subscriber sub_targets_;
+
+  void targetsCb(const geometry_msgs::PoseArrayConstPtr & msg);
 };
 
 }
@@ -86,7 +89,9 @@ namespace target_tracker
 {
 
 TargetTracker::TargetTracker() :
-    pub_(nh_.advertise<geometry_msgs::PoseArray>("/target_poses", 5))
+    nh_("~"),
+    pub_(nh_.advertise<geometry_msgs::PoseArray>("/target_poses", 5)),
+    sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
 {
   ros::NodeHandle private_nh("~");
   private_nh.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
@@ -197,4 +202,16 @@ void TargetTracker::update()
 
   vis_.publish();
 }
+
+inline void TargetTracker::targetsCb(
+    const geometry_msgs::PoseArrayConstPtr& msg)
+{
+  targets_.clear();
+  for (auto pose = msg->poses.begin(); pose != msg->poses.end(); ++pose)
+  {
+    targets_.push_back(
+        Target(pose->position.x, pose->position.y, pose->position.z));
+  }
+}
+
 }
