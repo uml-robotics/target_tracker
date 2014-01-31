@@ -46,6 +46,7 @@ void TargetVisualizer::publish()
 {
   visualization_msgs::MarkerArray arr;
   visualization_msgs::Marker marker;
+  marker.lifetime = ros::Duration(1);
   marker.header.frame_id = "/map";
   marker.ns = "targets";
   marker.type = visualization_msgs::Marker::CYLINDER;
