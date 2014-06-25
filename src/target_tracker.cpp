@@ -33,6 +33,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
+#include <std_msgs/Byte.h>
 #include <tf/transform_listener.h>
 #include <XmlRpcException.h>
 
@@ -55,6 +56,11 @@ public:
   void loadTargets(std::string targets_parameter_name = "targets");
   void update();
 
+  /**
+   * Publish number of remaining active targets
+   */
+  void publishActiveCount();
+
 protected:
   Target::vector targets_;
   TargetVisualizer vis_;
@@ -62,7 +68,8 @@ protected:
   std::string map_frame_id_;
   std::string base_frame_id_;
   ros::NodeHandle nh_;
-  ros::Publisher pub_;
+  ros::Publisher pub_targets_;
+  ros::Publisher pub_count_;
   ros::Subscriber sub_targets_;
 
   void targetsCb(const geometry_msgs::PoseArrayConstPtr & msg);
@@ -90,7 +97,8 @@ namespace target_tracker
 
 TargetTracker::TargetTracker() :
     nh_("~"),
-    pub_(nh_.advertise<geometry_msgs::PoseArray>("/target_poses", 5)),
+    pub_targets_(nh_.advertise<geometry_msgs::PoseArray>("/target_poses", 5)),
+    pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
     sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
 {
   ros::NodeHandle private_nh("~");
@@ -189,10 +197,11 @@ void TargetTracker::update()
         if (magnitude(base_pose.pose.position) < target->radius_)
         {
           target->setActive(false);
+          publishActiveCount();
         }
       }
     }
-    pub_.publish(targets_in_base_frame);
+    pub_targets_.publish(targets_in_base_frame);
   }
   catch (tf::TransformException &ex)
   {
@@ -201,6 +210,19 @@ void TargetTracker::update()
   }
 
   vis_.publish();
+}
+
+void TargetTracker::publishActiveCount()
+{
+  std_msgs::Byte count;
+  for (auto target = targets_.begin(); target != targets_.end(); ++target)
+    {
+      if (target->isActive())
+      {
+        count.data++;
+      }
+    }
+  pub_count_.publish(count);
 }
 
 inline void TargetTracker::targetsCb(
@@ -212,6 +234,7 @@ inline void TargetTracker::targetsCb(
     targets_.push_back(
         Target(pose->position.x, pose->position.y, pose->position.z));
   }
+  publishActiveCount();
 }
 
 }
