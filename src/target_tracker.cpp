@@ -39,6 +39,7 @@
 
 #include "target.h"
 #include "target_visualizer.h"
+#include "visibility_checker.h"
 
 namespace target_tracker
 {
@@ -46,6 +47,9 @@ namespace target_tracker
  * Given a list of targets on the plane, track which ones have been reached.
  * Publish the PoseArray message containing the targets that are still
  * active. The targets are transformed into base_frame_id frame.
+ *
+ * It also checks the /map used for navigation and determines if the target should
+ * be visible on that map. Only clears visible targets.
  */
 
 class TargetTracker
@@ -71,6 +75,7 @@ protected:
   ros::Publisher pub_targets_;
   ros::Publisher pub_count_;
   ros::Subscriber sub_targets_;
+  VisibilityChecker visibility_checker_;
 
   void targetsCb(const geometry_msgs::PoseArrayConstPtr & msg);
 };
@@ -194,7 +199,8 @@ void TargetTracker::update()
         map_pose.pose = target->getPose();
         tf_listener_.transformPose(base_frame_id_, map_pose, base_pose);
         targets_in_base_frame.poses.push_back(base_pose.pose);
-        if (magnitude(base_pose.pose.position) < target->radius_)
+        if (magnitude(base_pose.pose.position) < target->radius_ //
+            and visibility_checker_.targetIsVisible(*target))
         {
           target->setActive(false);
           publishActiveCount();
