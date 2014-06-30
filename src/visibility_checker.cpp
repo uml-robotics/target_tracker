@@ -127,7 +127,7 @@ geometry_msgs::PoseStamped getPose(const std::string ref_frame_id, const std::st
   return pose;
 }
 
-VisibilityChecker::VisibilityChecker():
+VisibilityChecker::VisibilityChecker() :
     sub_map_(nh_.subscribe<nav_msgs::OccupancyGrid>("/map", 1, &VisibilityChecker::mapCb, this)) //
 {
   ros::NodeHandle private_nh("~");
@@ -136,6 +136,12 @@ VisibilityChecker::VisibilityChecker():
 
 bool VisibilityChecker::targetIsVisible(Target& target)
 {
+  if (map_.data.size() == 0)
+  {
+    // If no map is available, assume target is visible
+    return true;
+  }
+
   geometry_msgs::PoseStamped robot_pose = getPose( //
       "/map", robot_frame_id_, tf_listener_);
 
