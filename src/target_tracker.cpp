@@ -79,8 +79,15 @@ protected:
   VisibilityChecker visibility_checker_;
   bool use_visibility_check_;
 
+  // Support for manual target clearing.
+  bool manual_clearing_;
+  std::string manual_clearing_topic_;
+  ros::Subscriber sub_manual_clear_;
+  std::vector<geometry_msgs::Pose> pose_to_clear_;
+  boost::mutex pose_to_clear_mutex_;
 
   void targetsCb(const geometry_msgs::PoseArrayConstPtr & msg);
+  void manualClearCb(const geometry_msgs::PoseConstPtr & msg);
 };
 
 }
@@ -113,7 +120,13 @@ TargetTracker::TargetTracker() :
   private_nh.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
   private_nh.param("map_frame_id", map_frame_id_, (std::string)"/map");
   private_nh.param("use_visibility_check", use_visibility_check_, true);
+  private_nh.param("manual_clearing", manual_clearing_, true);
+  private_nh.param("manual_clearing_topic", manual_clearing_topic_, (std::string)"/target_to_remove");
 
+  if (manual_clearing_)
+  {
+    sub_manual_clear_ = nh_.subscribe(manual_clearing_topic_, 5, &TargetTracker::manualClearCb, this);
+  }
   while (
       ros::ok() && ! ros::isShuttingDown() &&
       !tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
@@ -203,11 +216,41 @@ void TargetTracker::update()
         map_pose.pose = target->getPose();
         tf_listener_.transformPose(base_frame_id_, map_pose, base_pose);
         targets_in_base_frame.poses.push_back(base_pose.pose);
-        if (magnitude(base_pose.pose.position) < target->radius_ 
-              and (not use_visibility_check_ or visibility_checker_.targetIsVisible(*target)))
+        if (not manual_clearing_)
         {
-          target->setActive(false);
-          publishActiveCount();
+          if (magnitude(base_pose.pose.position) < target->radius_
+              and (not use_visibility_check_ or visibility_checker_.targetIsVisible(*target)))
+          {
+            target->setActive(false);
+            publishActiveCount();
+          }
+        }
+
+        else // manual_clearing
+        {
+          geometry_msgs::Point distance_vector;
+          geometry_msgs::Pose to_clear;
+          bool new_pose = false;
+          {
+            boost::mutex::scoped_lock lock(pose_to_clear_mutex_);
+            if (not pose_to_clear_.empty())
+            {
+              to_clear = *(pose_to_clear_.end() - 1);
+              pose_to_clear_.clear();
+              new_pose = true;
+            }
+          }
+          if (new_pose)
+          {
+            distance_vector.x = to_clear.position.x - base_pose.pose.position.x;
+            distance_vector.y = to_clear.position.y - base_pose.pose.position.y;
+            distance_vector.z = to_clear.position.z - base_pose.pose.position.z;
+            if (magnitude(distance_vector) < 0.5)
+            {
+              target->setActive(false);
+              publishActiveCount();
+            }
+          }
         }
       }
     }
@@ -245,6 +288,12 @@ inline void TargetTracker::targetsCb(
         Target(pose->position.x, pose->position.y, pose->position.z));
   }
   publishActiveCount();
+}
+
+inline void TargetTracker::manualClearCb(const geometry_msgs::PoseConstPtr& msg)
+{
+  boost::mutex::scoped_lock lock(pose_to_clear_mutex_);
+  pose_to_clear_.push_back(*msg);
 }
 
 }
