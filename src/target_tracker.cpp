@@ -30,6 +30,7 @@
 /* Author: Mikhail Medvedev */
 
 #include <vector>
+#include <boost/thread/mutex.hpp>
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
@@ -76,6 +77,8 @@ protected:
   ros::Publisher pub_count_;
   ros::Subscriber sub_targets_;
   VisibilityChecker visibility_checker_;
+  bool use_visibility_check_;
+
 
   void targetsCb(const geometry_msgs::PoseArrayConstPtr & msg);
 };
@@ -109,6 +112,7 @@ TargetTracker::TargetTracker() :
   ros::NodeHandle private_nh("~");
   private_nh.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
   private_nh.param("map_frame_id", map_frame_id_, (std::string)"/map");
+  private_nh.param("use_visibility_check", use_visibility_check_, true);
 
   while (
       ros::ok() && ! ros::isShuttingDown() &&
@@ -199,8 +203,8 @@ void TargetTracker::update()
         map_pose.pose = target->getPose();
         tf_listener_.transformPose(base_frame_id_, map_pose, base_pose);
         targets_in_base_frame.poses.push_back(base_pose.pose);
-        if (magnitude(base_pose.pose.position) < target->radius_ //
-            and visibility_checker_.targetIsVisible(*target))
+        if (magnitude(base_pose.pose.position) < target->radius_ 
+              and (not use_visibility_check_ or visibility_checker_.targetIsVisible(*target)))
         {
           target->setActive(false);
           publishActiveCount();
