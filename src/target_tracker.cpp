@@ -292,6 +292,7 @@ inline void TargetTracker::targetsCb(
 
 inline void TargetTracker::manualClearCb(const geometry_msgs::PoseConstPtr& msg)
 {
+  ROS_INFO_STREAM("CLEARING " << *msg.get());
   boost::mutex::scoped_lock lock(pose_to_clear_mutex_);
   pose_to_clear_.push_back(*msg);
 }
