@@ -208,7 +208,19 @@ void TargetTracker::update()
   {
     tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
                                   ros::Time::now(), ros::Duration(0.5));
-
+  
+    bool new_pose = false;
+    geometry_msgs::Pose to_clear;
+    {
+      boost::mutex::scoped_lock lock(pose_to_clear_mutex_);
+      if (not pose_to_clear_.empty())
+      {
+        to_clear = *(pose_to_clear_.end() - 1);
+        ROS_INFO_STREAM("ACTUALLY CLEARING " << to_clear); 
+        pose_to_clear_.clear();
+        new_pose = true;
+      }
+    }
     for (auto target = targets_.begin(); target != targets_.end(); ++target)
     { // Transform target poses into base frame
       if (target->isActive())
@@ -229,17 +241,7 @@ void TargetTracker::update()
         else // manual_clearing
         {
           geometry_msgs::Point distance_vector;
-          geometry_msgs::Pose to_clear;
-          bool new_pose = false;
-          {
-            boost::mutex::scoped_lock lock(pose_to_clear_mutex_);
-            if (not pose_to_clear_.empty())
-            {
-              to_clear = *(pose_to_clear_.end() - 1);
-              pose_to_clear_.clear();
-              new_pose = true;
-            }
-          }
+          
           if (new_pose)
           {
             distance_vector.x = to_clear.position.x - base_pose.pose.position.x;
@@ -249,6 +251,10 @@ void TargetTracker::update()
             {
               target->setActive(false);
               publishActiveCount();
+            }
+            else
+            {
+              ROS_WARN_STREAM("CLEARED TARGET IS " << magnitude(distance_vector) << " AWAY");
             }
           }
         }
