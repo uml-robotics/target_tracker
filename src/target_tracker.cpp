@@ -245,7 +245,7 @@ void TargetTracker::update()
             distance_vector.x = to_clear.position.x - base_pose.pose.position.x;
             distance_vector.y = to_clear.position.y - base_pose.pose.position.y;
             distance_vector.z = to_clear.position.z - base_pose.pose.position.z;
-            if (magnitude(distance_vector) < 0.5)
+            if (magnitude(distance_vector) < 2.0)
             {
               target->setActive(false);
               publishActiveCount();
