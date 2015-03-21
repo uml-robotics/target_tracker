@@ -34,31 +34,31 @@
 namespace target_tracker
 {
 
-  Target::Target(double x, double y, double radius) :
+  TargetStorage::TargetStorage(double x, double y, double radius) :
       radius_(radius), cleared_count_(0)
   {
     pose_.position.x = x;
     pose_.position.y = y;
     pose_.orientation.w = 1; // Orientation is not used
   }
-  typedef std::vector<Target> vector;
+  typedef std::vector<TargetStorage> vector;
 
-  geometry_msgs::Pose & Target::getPose()
+  geometry_msgs::Pose & TargetStorage::getPose()
   {
     return pose_;
   }
 
-  int Target::getClearedCount() const
+  int TargetStorage::getClearedCount() const
   {
     return cleared_count_;
   }
 
-  void Target::incrementClearedCount()
+  void TargetStorage::incrementClearedCount()
   {
     cleared_count_++;
   }
 
-  void Target::setClearedCount(int count)
+  void TargetStorage::setClearedCount(int count)
   {
     cleared_count_ = count;
   }

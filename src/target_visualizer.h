@@ -43,12 +43,12 @@ public:
 
   TargetVisualizer();
 
-  void setTargets(Target::vector * targets);
+  void setTargets(TargetStorage::vector * targets);
 
   void publish();
 
 protected:
-  Target::vector * targets_;
+  TargetStorage::vector * targets_;
   ros::NodeHandle nh_;
   ros::Publisher pub_;
 

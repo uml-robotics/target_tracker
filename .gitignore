@@ -37,3 +37,4 @@ docs/
 
 # Mac os
 .DS_Store
+src/target_tracker/

@@ -37,13 +37,13 @@
 namespace target_tracker
 {
 
-class Target
+class TargetStorage
 {
 
 public:
-  Target(double x, double y, double radius = 1);
+  TargetStorage(double x, double y, double radius = 1);
 
-  typedef std::vector<Target> vector;
+  typedef std::vector<TargetStorage> vector;
 
   geometry_msgs::Pose & getPose();
 

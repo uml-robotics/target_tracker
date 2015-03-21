@@ -66,7 +66,7 @@ void TargetVisualizer::publish()
   pub_.publish(arr);
 }
 
-void TargetVisualizer::setTargets(Target::vector * targets)
+void TargetVisualizer::setTargets(TargetStorage::vector * targets)
 {
   targets_ = targets;
 }

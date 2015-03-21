@@ -59,7 +59,7 @@ public:
    * @param target Target to check, assumed map frame.
    * @return True if target should be visible from robot position in the localization map.
    */
-  bool targetIsVisible(Target & target);
+  bool targetIsVisible(TargetStorage & target);
 
 private:
   void mapCb(const nav_msgs::OccupancyGridConstPtr& msg);

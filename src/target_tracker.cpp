@@ -34,6 +34,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
+#include <target_tracker/TargetArray.h>
 #include <std_msgs/Byte.h>
 #include <tf/transform_listener.h>
 #include <XmlRpcException.h>
@@ -67,7 +68,7 @@ public:
   void publishActiveCount();
 
 protected:
-  Target::vector targets_;
+  TargetStorage::vector targets_;
   TargetVisualizer vis_;
   tf::TransformListener tf_listener_;
   std::string map_frame_id_;
@@ -112,7 +113,7 @@ namespace target_tracker
 
 TargetTracker::TargetTracker() :
     nh_("~"),
-    pub_targets_(nh_.advertise<geometry_msgs::PoseArray>("/target_poses", 5)),
+    pub_targets_(nh_.advertise<target_tracker::TargetArray>("/target_poses", 5)),
     pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
     sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
 {
@@ -166,7 +167,7 @@ void TargetTracker::loadTargets(std::string targets_parameter_name)
           ROS_ASSERT(v[0].getType() == XmlRpc::XmlRpcValue::TypeDouble);
           ROS_ASSERT(v[1].getType() == XmlRpc::XmlRpcValue::TypeDouble);
           ROS_ASSERT(v[2].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-          targets_.push_back(Target(v[0], v[1], v[2]));
+          targets_.push_back(TargetStorage(v[0], v[1], v[2]));
         }
         else
         {
@@ -195,10 +196,11 @@ inline double magnitude(geometry_msgs::Point point)
 
 void TargetTracker::update()
 {
+  target_tracker::Target new_target;
   geometry_msgs::PoseStamped base_pose;
   base_pose.header.stamp = ros::Time::now();
 
-  geometry_msgs::PoseArray targets_in_base_frame;
+  target_tracker::TargetArray targets_in_base_frame;
   targets_in_base_frame.header.stamp = base_pose.header.stamp;
   targets_in_base_frame.header.frame_id = base_frame_id_;
 
@@ -227,7 +229,9 @@ void TargetTracker::update()
       {
         map_pose.pose = target->getPose();
         tf_listener_.transformPose(base_frame_id_, map_pose, base_pose);
-        targets_in_base_frame.poses.push_back(base_pose.pose);
+        new_target.pose = base_pose.pose;
+        new_target.cleared_count = target->getClearedCount();
+        targets_in_base_frame.targets.push_back(new_target);
         if (not manual_clearing_)
         {
           if (magnitude(base_pose.pose.position) < target->radius_
@@ -291,7 +295,7 @@ inline void TargetTracker::targetsCb(
   for (auto pose = msg->poses.begin(); pose != msg->poses.end(); ++pose)
   {
     targets_.push_back(
-        Target(pose->position.x, pose->position.y, pose->position.z));
+        TargetStorage(pose->position.x, pose->position.y, pose->position.z));
   }
   publishActiveCount();
 }

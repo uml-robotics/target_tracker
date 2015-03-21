@@ -134,7 +134,7 @@ VisibilityChecker::VisibilityChecker() :
   private_nh.param("robot_frame_id", robot_frame_id_, (std::string)"/base_link");
 }
 
-bool VisibilityChecker::targetIsVisible(Target& target)
+bool VisibilityChecker::targetIsVisible(TargetStorage& target)
 {
   if (map_.data.size() == 0)
   {
