@@ -223,7 +223,7 @@ void TargetTracker::update()
     }
     for (auto target = targets_.begin(); target != targets_.end(); ++target)
     { // Transform target poses into base frame
-      if (target->isActive())
+      if (true)
       {
         map_pose.pose = target->getPose();
         tf_listener_.transformPose(base_frame_id_, map_pose, base_pose);
@@ -233,7 +233,7 @@ void TargetTracker::update()
           if (magnitude(base_pose.pose.position) < target->radius_
               and (not use_visibility_check_ or visibility_checker_.targetIsVisible(*target)))
           {
-            target->setActive(false);
+            target->incrementClearedCount();
             publishActiveCount();
           }
         }
@@ -249,7 +249,7 @@ void TargetTracker::update()
             distance_vector.z = to_clear.position.z - base_pose.pose.position.z;
             if (magnitude(distance_vector) < 2.0)
             {
-              target->setActive(false);
+              target->incrementClearedCount();
               publishActiveCount();
             }
             else
@@ -276,7 +276,7 @@ void TargetTracker::publishActiveCount()
   std_msgs::Byte count;
   for (auto target = targets_.begin(); target != targets_.end(); ++target)
     {
-      if (target->isActive())
+      if (target->getClearedCount() == 0)
       {
         count.data++;
       }
@@ -298,7 +298,7 @@ inline void TargetTracker::targetsCb(
 
 inline void TargetTracker::manualClearCb(const geometry_msgs::PoseConstPtr& msg)
 {
-  ROS_INFO_STREAM("CLEARING " << *msg.get());
+  ROS_INFO_STREAM("Incrementing clear count on " << *msg.get());
   boost::mutex::scoped_lock lock(pose_to_clear_mutex_);
   pose_to_clear_.push_back(*msg);
 }

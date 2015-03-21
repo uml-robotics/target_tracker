@@ -47,15 +47,17 @@ public:
 
   geometry_msgs::Pose & getPose();
 
-  bool isActive() const;
+  int getClearedCount() const;
 
-  void setActive(bool state);
+  void incrementClearedCount();
+
+  void setClearedCount(int count);
 
 public:
   double radius_;
 
 protected:
-  bool active_;
+  int cleared_count_;
   geometry_msgs::Pose pose_;
 };
 

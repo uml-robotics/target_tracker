@@ -35,7 +35,7 @@ namespace target_tracker
 {
 
   Target::Target(double x, double y, double radius) :
-      radius_(radius), active_(true)
+      radius_(radius), cleared_count_(0)
   {
     pose_.position.x = x;
     pose_.position.y = y;
@@ -48,14 +48,19 @@ namespace target_tracker
     return pose_;
   }
 
-  bool Target::isActive() const
+  int Target::getClearedCount() const
   {
-    return active_;
+    return cleared_count_;
   }
 
-  void Target::setActive(bool state)
+  void Target::incrementClearedCount()
   {
-    active_ = state;
+    cleared_count_++;
+  }
+
+  void Target::setClearedCount(int count)
+  {
+    cleared_count_ = count;
   }
 
 } /* namespace target_tracker */

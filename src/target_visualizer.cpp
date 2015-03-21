@@ -51,14 +51,14 @@ void TargetVisualizer::publish()
   marker.ns = "targets";
   marker.type = visualization_msgs::Marker::CYLINDER;
   marker.scale.z = 0.01;
-  marker.color.a = 0.5;
   for (auto target = targets_->begin(); target != targets_->end(); ++target)
   {
     marker.scale.x = target->radius_ * 2;
     marker.scale.y = target->radius_ * 2;
     marker.pose = target->getPose();
-    marker.color.r = target->isActive() ? 0.5 : 0;
-    marker.color.b = target->isActive() ? 0 : 0.5;
+    marker.color.a = 1.0 / (1.0 + target->getClearedCount());
+    marker.color.r = target->getClearedCount() == 0 ? 0.5 : 0;
+    marker.color.b = target->getClearedCount() == 0 ? 0 : 0.5;
     arr.markers.push_back(marker);
     marker.id++;
   }
