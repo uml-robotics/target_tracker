@@ -113,7 +113,7 @@ namespace target_tracker
 
 TargetTracker::TargetTracker() :
     nh_("~"),
-    pub_targets_(nh_.advertise<target_tracker::TargetArray>("/target_poses", 5)),
+    pub_targets_(nh_.advertise<rlucid_msgs::TargetArray>("/target_poses", 5)),
     pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
     sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
 {
@@ -196,11 +196,11 @@ inline double magnitude(geometry_msgs::Point point)
 
 void TargetTracker::update()
 {
-  target_tracker::Target new_target;
+  rlucid_msgs::Target new_target;
   geometry_msgs::PoseStamped base_pose;
   base_pose.header.stamp = ros::Time::now();
 
-  target_tracker::TargetArray targets_in_base_frame;
+  rlucid_msgs::TargetArray targets_in_base_frame;
   targets_in_base_frame.header.stamp = base_pose.header.stamp;
   targets_in_base_frame.header.frame_id = base_frame_id_;
 
