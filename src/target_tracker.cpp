@@ -34,7 +34,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
-#include <target_tracker/TargetArray.h>
+#include <rlucid_msgs/TargetArray.h>
 #include <std_msgs/Byte.h>
 #include <tf/transform_listener.h>
 #include <XmlRpcException.h>

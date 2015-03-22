@@ -17,6 +17,7 @@
   <depend package="nav_msgs"/>
   <depend package="tf"/>
   <depend package="std_msgs"/>
+  <depend package="rlucid_msgs" />
 
 </package>
 
