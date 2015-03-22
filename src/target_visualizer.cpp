@@ -56,7 +56,7 @@ void TargetVisualizer::publish()
     marker.scale.x = target->radius_ * 2;
     marker.scale.y = target->radius_ * 2;
     marker.pose = target->getPose();
-    marker.color.a = 1.0 / (1.0 + target->getClearedCount());
+    marker.color.a = target->getClearedCount() == 0 ? 0.5 : 1.0 / (1.0 + target->getClearedCount());
     marker.color.r = target->getClearedCount() == 0 ? 0.5 : 0;
     marker.color.b = target->getClearedCount() == 0 ? 0 : 0.5;
     arr.markers.push_back(marker);
