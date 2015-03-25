@@ -169,7 +169,11 @@ void TargetTracker::loadTargets(std::string targets_parameter_name)
           ROS_ASSERT(v[0].getType() == XmlRpc::XmlRpcValue::TypeDouble);
           ROS_ASSERT(v[1].getType() == XmlRpc::XmlRpcValue::TypeDouble);
           ROS_ASSERT(v[2].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-          targets_.push_back(TargetStorage(v[0], v[1], v[2]));
+          TargetStorage ts(v[0], v[1], 1.0);
+          tf::Quaternion quat;
+          quat.setRPY(0, 0, v[2]);
+          tf::quaternionTFToMsg(quat, ts.pose_.orientation);
+          targets_.push_back(ts);
         }
         else
         {

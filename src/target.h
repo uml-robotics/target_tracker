@@ -55,10 +55,10 @@ public:
 
 public:
   double radius_;
+  geometry_msgs::Pose pose_;
 
 protected:
   int cleared_count_;
-  geometry_msgs::Pose pose_;
 };
 
 } /* namespace target_tracker */
