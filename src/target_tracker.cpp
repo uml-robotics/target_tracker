@@ -75,6 +75,7 @@ protected:
   std::string base_frame_id_;
   ros::NodeHandle nh_;
   ros::Publisher pub_targets_;
+  ros::Publisher pub_poses_;
   ros::Publisher pub_count_;
   ros::Subscriber sub_targets_;
   VisibilityChecker visibility_checker_;
@@ -114,6 +115,7 @@ namespace target_tracker
 TargetTracker::TargetTracker() :
     nh_("~"),
     pub_targets_(nh_.advertise<rlucid_msgs::TargetArray>("/target_poses", 5)),
+    pub_poses_(nh_.advertise<geometry_msgs::PoseArray>("/target_posearray", 5)),
     pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
     sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
 {
@@ -201,8 +203,9 @@ void TargetTracker::update()
   base_pose.header.stamp = ros::Time::now();
 
   rlucid_msgs::TargetArray targets_in_base_frame;
-  targets_in_base_frame.header.stamp = base_pose.header.stamp;
-  targets_in_base_frame.header.frame_id = base_frame_id_;
+  geometry_msgs::PoseArray poses_in_base_frame;
+  poses_in_base_frame.header.stamp = targets_in_base_frame.header.stamp = base_pose.header.stamp;
+  poses_in_base_frame.header.frame_id = targets_in_base_frame.header.frame_id = base_frame_id_;
 
   geometry_msgs::PoseStamped map_pose;
   map_pose.header.frame_id = map_frame_id_;
@@ -232,6 +235,7 @@ void TargetTracker::update()
         new_target.pose = base_pose.pose;
         new_target.cleared_count = target->getClearedCount();
         targets_in_base_frame.targets.push_back(new_target);
+        poses_in_base_frame.poses.push_back(base_pose.pose);
         if (not manual_clearing_)
         {
           if (magnitude(base_pose.pose.position) < target->radius_
@@ -265,6 +269,7 @@ void TargetTracker::update()
       }
     }
     pub_targets_.publish(targets_in_base_frame);
+    pub_poses_.publish(poses_in_base_frame);
   }
   catch (tf::TransformException &ex)
   {
