@@ -33,6 +33,7 @@
 
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Quaternion.h>
 
 namespace target_tracker
 {
@@ -41,7 +42,7 @@ class TargetStorage
 {
 
 public:
-  TargetStorage(double x, double y, double radius = 1);
+  TargetStorage(double x, double y, double radius, geometry_msgs::Quaternion q);
 
   typedef std::vector<TargetStorage> vector;
 

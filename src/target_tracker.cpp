@@ -169,10 +169,11 @@ void TargetTracker::loadTargets(std::string targets_parameter_name)
           ROS_ASSERT(v[0].getType() == XmlRpc::XmlRpcValue::TypeDouble);
           ROS_ASSERT(v[1].getType() == XmlRpc::XmlRpcValue::TypeDouble);
           ROS_ASSERT(v[2].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-          TargetStorage ts(v[0], v[1], 1.0);
           tf::Quaternion quat;
+          geometry_msgs::Quaternion q;
           quat.setRPY(0, 0, v[2]);
-          tf::quaternionTFToMsg(quat, ts.pose_.orientation);
+          tf::quaternionTFToMsg(quat, q);
+          TargetStorage ts(v[0], v[1], 1.0, q);
           targets_.push_back(ts);
         }
         else
@@ -304,7 +305,7 @@ inline void TargetTracker::targetsCb(
   for (auto pose = msg->poses.begin(); pose != msg->poses.end(); ++pose)
   {
     targets_.push_back(
-        TargetStorage(pose->position.x, pose->position.y, pose->position.z));
+        TargetStorage(pose->position.x, pose->position.y, pose->position.z, pose->orientation));
   }
   publishActiveCount();
 }

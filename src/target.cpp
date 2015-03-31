@@ -34,12 +34,12 @@
 namespace target_tracker
 {
 
-  TargetStorage::TargetStorage(double x, double y, double radius) :
+  TargetStorage::TargetStorage(double x, double y, double radius, geometry_msgs::Quaternion q) :
       radius_(radius), cleared_count_(0)
   {
     pose_.position.x = x;
     pose_.position.y = y;
-    pose_.orientation.w = 1; // Orientation is not used
+    pose_.orientation = q;
   }
   typedef std::vector<TargetStorage> vector;
 
