@@ -218,7 +218,7 @@ void TargetTracker::update()
   try
   {
     tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
-                                  ros::Time::now(), ros::Duration(0.5));
+                                  ros::Time(0), ros::Duration(0.5));
   
     bool new_pose = false;
     geometry_msgs::Pose to_clear;
