@@ -114,6 +114,7 @@ namespace target_tracker
 
 TargetTracker::TargetTracker() :
     nh_("~"),
+    tf_listener_(),
     pub_targets_(nh_.advertise<rlucid_msgs::TargetArray>("/target_poses", 5)),
     pub_poses_(nh_.advertise<geometry_msgs::PoseArray>("/target_posearray", 5)),
     pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
@@ -133,7 +134,7 @@ TargetTracker::TargetTracker() :
   while (
       ros::ok() && ! ros::isShuttingDown() &&
       !tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
-                                        ros::Time::now(), ros::Duration(1.0)))
+                                        ros::Time(0), ros::Duration(1.0)))
   {
     ROS_INFO_STREAM(
         "Waiting for transform "<<map_frame_id_<<"->"<<base_frame_id_<<".");
