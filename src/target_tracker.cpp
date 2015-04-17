@@ -217,8 +217,10 @@ void TargetTracker::update()
   map_pose.header.frame_id = map_frame_id_;
   try
   {
-    tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
-                                  ros::Time(0), ros::Duration(0.5));
+    if (!tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
+                                  ros::Time(0), ros::Duration(0.5))) {
+      ROS_WARN("failed to look up transform from %s to %s... prognosis is grim.", map_frame_id_.c_str(), base_frame_id_.c_str());
+    }
   
     bool new_pose = false;
     geometry_msgs::Pose to_clear;
