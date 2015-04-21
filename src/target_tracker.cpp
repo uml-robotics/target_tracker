@@ -77,6 +77,7 @@ protected:
   ros::Publisher pub_targets_;
   ros::Publisher pub_poses_;
   ros::Publisher pub_count_;
+  ros::Publisher pub_nearest_target_;
   ros::Subscriber sub_targets_;
   VisibilityChecker visibility_checker_;
   bool use_visibility_check_;
@@ -118,6 +119,7 @@ TargetTracker::TargetTracker() :
     pub_targets_(nh_.advertise<rlucid_msgs::TargetArray>("/target_poses", 5)),
     pub_poses_(nh_.advertise<geometry_msgs::PoseArray>("/target_posearray", 5)),
     pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
+    pub_nearest_target_(nh_.advertise<rlucid_msgs::Target>("/nearest_target", 100, true)),
     sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
 {
   ros::NodeHandle private_nh("~");
@@ -206,6 +208,8 @@ void TargetTracker::update()
 {
   rlucid_msgs::Target new_target;
   geometry_msgs::PoseStamped base_pose;
+  rlucid_msgs::Target nearest;
+  double dist=0, nearestdistance=1000.0;  //if the targets are more than 1 KM away, then you're SOL
   base_pose.header.stamp = ros::Time::now();
 
   rlucid_msgs::TargetArray targets_in_base_frame;
@@ -243,6 +247,12 @@ void TargetTracker::update()
         new_target.pose = base_pose.pose;
         new_target.cleared_count = target->getClearedCount();
         targets_in_base_frame.targets.push_back(new_target);
+        if ((dist=magnitude(new_target.pose.position))<nearestdistance)
+        {
+          nearestdistance=dist;
+          nearest.pose = new_target.pose;
+          nearest.cleared_count = new_target.cleared_count;
+        }
         poses_in_base_frame.poses.push_back(base_pose.pose);
         if (not manual_clearing_)
         {
@@ -276,6 +286,9 @@ void TargetTracker::update()
         }
       }
     }
+    if (nearestdistance < 1000.0) {
+      pub_nearest_target_.publish(nearest);
+    }
     pub_targets_.publish(targets_in_base_frame);
     pub_poses_.publish(poses_in_base_frame);
   }
@@ -304,6 +317,7 @@ void TargetTracker::publishActiveCount()
 inline void TargetTracker::targetsCb(
     const geometry_msgs::PoseArrayConstPtr& msg)
 {
+  ROS_WARN("Received replacement targets array");
   targets_.clear();
   for (auto pose = msg->poses.begin(); pose != msg->poses.end(); ++pose)
   {
