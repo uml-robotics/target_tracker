@@ -28,9 +28,11 @@
  */
 
 /* Author: Mikhail Medvedev */
+/* Rendered useless for those without non-public giblets by Eric McCann. wuuups! */
 
 #include <vector>
 #include <boost/thread/mutex.hpp>
+#include "XmlRpcValue.h"
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseArray.h>
@@ -42,6 +44,20 @@
 #include "target.h"
 #include "target_visualizer.h"
 #include "visibility_checker.h"
+
+#include <dynamic_reconfigure/BoolParameter.h>
+#include <dynamic_reconfigure/IntParameter.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/Config.h>
+
+#define toMap(vector_type_argument, type_argument, list_of_dynparams, map_name) \
+  for (std::vector< vector_type_argument >::const_iterator bp = list_of_dynparams.begin(); bp != list_of_dynparams.end(); bp++) \
+  { \
+    map_name[bp->name] = (type_argument)bp->value; \
+  } \
+  while(0)
+
+using namespace XmlRpc;
 
 namespace target_tracker
 {
@@ -59,7 +75,7 @@ class TargetTracker
 
 public:
   TargetTracker();
-  void loadTargets(std::string targets_parameter_name = "targets");
+  void loadTargets();
   void update();
 
   /**
@@ -68,17 +84,22 @@ public:
   void publishActiveCount();
 
 protected:
-  TargetStorage::vector targets_;
+  bool in_progress_;
+  bool paused_;
+  std::string current_map_;
+  std::map<int,std::string> map_names;
+  std::map<std::string, TargetStorage::vector> targets_;
   TargetVisualizer vis_;
   tf::TransformListener tf_listener_;
   std::string map_frame_id_;
   std::string base_frame_id_;
   ros::NodeHandle nh_;
+  ros::Subscriber experimentSub;
   ros::Publisher pub_targets_;
   ros::Publisher pub_poses_;
   ros::Publisher pub_count_;
   ros::Publisher pub_nearest_target_;
-  ros::Subscriber sub_targets_;
+  
   VisibilityChecker visibility_checker_;
   bool use_visibility_check_;
 
@@ -89,8 +110,8 @@ protected:
   std::vector<geometry_msgs::Pose> pose_to_clear_;
   boost::mutex pose_to_clear_mutex_;
 
-  void targetsCb(const geometry_msgs::PoseArrayConstPtr & msg);
   void manualClearCb(const geometry_msgs::PoseConstPtr & msg);
+  void experimentCallback(const dynamic_reconfigure::Config &cfg);
 };
 
 }
@@ -116,18 +137,89 @@ namespace target_tracker
 TargetTracker::TargetTracker() :
     nh_("~"),
     tf_listener_(),
+    in_progress_(false),
+    paused_(false),
+    map_names(),
+    current_map_(""),
+    experimentSub(nh_.subscribe("/experiment/parameter_updates", 1, &TargetTracker::experimentCallback, this)),
     pub_targets_(nh_.advertise<rlucid_msgs::TargetArray>("/target_poses", 5)),
     pub_poses_(nh_.advertise<geometry_msgs::PoseArray>("/target_posearray", 5)),
     pub_count_(nh_.advertise<std_msgs::Byte>("/active_targets_count", 5, true)),
-    pub_nearest_target_(nh_.advertise<rlucid_msgs::Target>("/nearest_target", 100, true)),
-    sub_targets_(nh_.subscribe("init_targets",3 , &TargetTracker::targetsCb, this))
+    pub_nearest_target_(nh_.advertise<rlucid_msgs::Target>("/nearest_target", 100, true))
 {
-  ros::NodeHandle private_nh("~");
-  private_nh.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
-  private_nh.param("map_frame_id", map_frame_id_, (std::string)"/map");
-  private_nh.param("use_visibility_check", use_visibility_check_, true);
-  private_nh.param("manual_clearing", manual_clearing_, true);
-  private_nh.param("manual_clearing_topic", manual_clearing_topic_, (std::string)"/target_to_remove");
+  nh_.param("base_frame_id", base_frame_id_, (std::string)"/base_link");
+  nh_.param("map_frame_id", map_frame_id_, (std::string)"/map");
+  nh_.param("use_visibility_check", use_visibility_check_, true);
+  nh_.param("manual_clearing", manual_clearing_, true);
+  nh_.param("manual_clearing_topic", manual_clearing_topic_, (std::string)"/target_to_remove");
+
+  // DANGER WILL ROBINSON
+  // THIS CODE IS DESIGNED FOR A VERY SPECIFIC YAML FORMAT
+  // IT WILL PROBABLY EAT YOUR CAT IF YOU USE IT
+  // OR CURSE YOU WITH SOME SORT OF MUMMY CURSE (... or something) IF YOU TRY TO READ IT
+  //    IT RELIES ON A PRIVATE REPOSITORY'S DYNAMIC RECONFIGURE SERVER TO CONTROL WHICH MAP'S TARGETS IT IS TRACKING
+/*
+//example of yaml format
+{
+  configs: {
+    a: { //map identifier
+      resolution: 0.0127, // m/pix
+      width: 842, // map image width pix
+      height: 728, // map image height pix
+      north_angle: 1.57, //radians, relative to image
+      targets: {  // target_identifier: [ x pixels, y pixels, radians relative to image]
+        a: [321.0, 120.0, 3.14],
+        b: [522.0, 120.0, 3.14],
+        c: [723.0, 264.0, 1.57],
+        d: [723.0, 465.0, 0.00],
+        e: [522.0, 609.0, 3.14],
+        f: [321.0, 609.0, 0.00],
+        g: [120.0, 465.0, 1.57],
+        h: [120.0, 264.0, 3.14]
+      }
+    },
+    {
+      // and so on and so on until all you base are belong to us
+    }
+  }
+}
+*/
+  XmlRpcValue val;
+  if (nh_.hasParam("configs") && nh_.getParam("configs", val) && val.getType() == XmlRpcValue::TypeStruct)
+  {
+    XmlRpcValue map_kvp;
+    int map_index=0;
+    for (XmlRpcValue::iterator map_kvp = val.begin();
+          map_kvp != val.end();
+          map_kvp++)
+    {
+      map_names[map_index++]=map_kvp->first;
+      double north_angle = map_kvp->second["north_angle"];
+      double resolution = map_kvp->second["resolution"];
+      double height = (double)((int)map_kvp->second["height"]);
+      for (XmlRpcValue::iterator room_kvp = map_kvp->second["targets"].begin();
+            room_kvp != map_kvp->second["targets"].end();
+            room_kvp++)
+      {
+        ROS_INFO("Loading target for M(%s)R(%s)", map_kvp->first.c_str(), room_kvp->first.c_str());
+        double x,y,t;
+        x = (double)room_kvp->second[0]*resolution;
+        y = (height - (double)room_kvp->second[1])*resolution;
+        t = (double)(room_kvp->second[2]);
+        tf::Quaternion quat;
+        geometry_msgs::Quaternion q;
+        quat.setRPY(0, 0, t);
+        tf::quaternionTFToMsg(quat, q);
+        TargetStorage ts(x, y, 1.0, q);
+        targets_[map_kvp->first].push_back(ts);
+      }
+    }
+  }
+  else
+  {
+    ROS_WARN_STREAM(
+        "Parameter configs not found, no targets were loaded.");
+  }
 
   if (manual_clearing_)
   {
@@ -150,53 +242,13 @@ TargetTracker::TargetTracker() :
  * Load targets from parameter server.
  * @param targets_parameter_name
  */
-void TargetTracker::loadTargets(std::string targets_parameter_name)
+void TargetTracker::loadTargets()
 {
-  ros::NodeHandle private_nh("~");
-  if (private_nh.hasParam(targets_parameter_name))
-  {
-    try
-    {
-      ROS_INFO_STREAM(
-          "Loading targets from '"<< targets_parameter_name <<"' parameter.");
-      XmlRpc::XmlRpcValue value;
-      private_nh.getParam(targets_parameter_name, value);
-      ROS_ASSERT(value.getType() == XmlRpc::XmlRpcValue::TypeArray);
-
-      for (int i = 0; i < value.size(); i++)
-      {
-        ROS_ASSERT(value[i].getType() == XmlRpc::XmlRpcValue::TypeArray);
-        if (value[i].size() == 3)
-        {
-          XmlRpc::XmlRpcValue v = value[i];
-          ROS_ASSERT(v[0].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-          ROS_ASSERT(v[1].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-          ROS_ASSERT(v[2].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-          tf::Quaternion quat;
-          geometry_msgs::Quaternion q;
-          quat.setRPY(0, 0, v[2]);
-          tf::quaternionTFToMsg(quat, q);
-          TargetStorage ts(v[0], v[1], 1.0, q);
-          targets_.push_back(ts);
-        }
-        else
-        {
-          ROS_WARN_STREAM(
-              "Skipping incomplete target on line " << i <<", only found " << value[i].size()<<" elements (3 expected)");
-        }
-      }
-    }
-    catch (XmlRpc::XmlRpcException & ex)
-    {
-      ROS_ERROR_STREAM("Error parsing parameter: "<<ex.getMessage());
-    }
-  }
-  else
-  {
-    ROS_WARN_STREAM(
-        "Parameter '"<< targets_parameter_name <<"' not found, no targets were loaded.");
-  }
-  vis_.setTargets(&targets_);
+  ROS_INFO("Loading targets for MAP=\"%s\"", current_map_.c_str());
+  if (current_map_.size()==0)
+    return;
+  vis_.setTargets(&(targets_[current_map_]));
+  update();
 }
 
 inline double magnitude(geometry_msgs::Point point)
@@ -206,6 +258,8 @@ inline double magnitude(geometry_msgs::Point point)
 
 void TargetTracker::update()
 {
+  if (current_map_.size()==0 || !in_progress_ || paused_)
+    return;
   rlucid_msgs::Target new_target;
   geometry_msgs::PoseStamped base_pose;
   rlucid_msgs::Target nearest;
@@ -238,7 +292,7 @@ void TargetTracker::update()
         new_pose = true;
       }
     }
-    for (auto target = targets_.begin(); target != targets_.end(); ++target)
+    for (auto target = targets_[current_map_].begin(); target != targets_[current_map_].end(); ++target)
     { // Transform target poses into base frame
       if (true)
       {
@@ -303,8 +357,10 @@ void TargetTracker::update()
 
 void TargetTracker::publishActiveCount()
 {
+  if (current_map_.size()==0 || !in_progress_ || paused_)
+    return;
   std_msgs::Byte count;
-  for (auto target = targets_.begin(); target != targets_.end(); ++target)
+  for (auto target = targets_[current_map_].begin(); target != targets_[current_map_].end(); ++target)
     {
       if (target->getClearedCount() == 0)
       {
@@ -314,17 +370,38 @@ void TargetTracker::publishActiveCount()
   pub_count_.publish(count);
 }
 
-inline void TargetTracker::targetsCb(
-    const geometry_msgs::PoseArrayConstPtr& msg)
+
+
+void TargetTracker::experimentCallback(const dynamic_reconfigure::Config &config)
 {
-  ROS_WARN("Received replacement targets array");
-  targets_.clear();
-  for (auto pose = msg->poses.begin(); pose != msg->poses.end(); ++pose)
-  {
-    targets_.push_back(
-        TargetStorage(pose->position.x, pose->position.y, pose->position.z, pose->orientation));
+  std::map<std::string, bool> bools;
+  std::map<std::string, int> ints;
+  toMap(dynamic_reconfigure::BoolParameter, bool, config.bools, bools);
+  toMap(dynamic_reconfigure::IntParameter, int, config.ints, ints);
+  paused_ = bools["paused"];
+  in_progress_ = bools["in_progress"];
+  int mapindex = ints["preset_id"];
+  std::string current_map;
+  if (map_names.find(mapindex) != map_names.end())
+    current_map = map_names[mapindex];
+  else
+    current_map = "";
+  if (current_map.compare(current_map_) != 0) {
+    ROS_INFO("MAP CHANGED: map=%s, paused=%s, in_progress=%s", current_map.size() == 0 ? "?" : current_map.c_str(), paused_ ? "T" : "F", in_progress_ ? "T" : "F");
+    current_map_ = current_map;
+    loadTargets();
   }
-  publishActiveCount();
+  if (!in_progress_)
+  {
+    ROS_WARN("NOT IN PROGRESS ==> RESETTING TARGETS COUNT");
+    for(auto amap = targets_.begin(); amap != targets_.end(); amap++)
+    {
+      for(auto atarget = amap->second.begin(); atarget != amap->second.end(); atarget++)
+      {
+        atarget->setClearedCount(0);
+      }
+    }
+  }
 }
 
 inline void TargetTracker::manualClearCb(const geometry_msgs::PoseConstPtr& msg)
