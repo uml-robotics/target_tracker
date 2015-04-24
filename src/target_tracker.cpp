@@ -230,7 +230,7 @@ TargetTracker::TargetTracker() :
       !tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
                                         ros::Time(0), ros::Duration(1.0)))
   {
-    ROS_INFO_STREAM(
+    ROS_INFO_STREAM_THROTTLE(15,
         "Waiting for transform "<<map_frame_id_<<"->"<<base_frame_id_<<".");
   }
   ROS_INFO("Transform ok.");
