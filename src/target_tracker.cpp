@@ -217,7 +217,7 @@ TargetTracker::TargetTracker() :
         "Waiting for transform "<<map_frame_id_<<"->"<<base_frame_id_<<".");
   }
   ROS_INFO("Transform ok.");
-
+  nh_.deleteParam("configs");
   loadTargets();
 }
 
