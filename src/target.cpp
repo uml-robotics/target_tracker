@@ -34,18 +34,26 @@
 namespace target_tracker
 {
 
-  TargetStorage::TargetStorage(double x, double y, double radius, geometry_msgs::Quaternion q) :
-      radius_(radius), cleared_count_(0)
+  TargetStorage::TargetStorage(double x, double y, double radius, double theta) :
+      pose_(), radius_(radius), cleared_count_(0)
   {
     pose_.position.x = x;
     pose_.position.y = y;
-    pose_.orientation = q;
+    tf::Quaternion quat;
+    quat.setRPY(0, 0, theta);
+    tf::quaternionTFToMsg(quat, pose_.orientation);
+    tf::poseMsgToTF(pose_, pose_tf_);
   }
   typedef std::vector<TargetStorage> vector;
 
   geometry_msgs::Pose & TargetStorage::getPose()
   {
     return pose_;
+  }
+  tf::Stamped<tf::Pose> TargetStorage::getTFPose(const ros::Time & t, const std::string &fid)
+  {
+    return tf::Stamped<tf::Pose>(pose_tf_, t, fid);
+
   }
 
   int TargetStorage::getClearedCount() const

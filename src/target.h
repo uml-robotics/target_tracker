@@ -34,6 +34,7 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Quaternion.h>
+#include <tf/tf.h>
 
 namespace target_tracker
 {
@@ -42,10 +43,11 @@ class TargetStorage
 {
 
 public:
-  TargetStorage(double x, double y, double radius, geometry_msgs::Quaternion q);
+  TargetStorage(double x, double y, double radius, double theta);
 
   typedef std::vector<TargetStorage> vector;
 
+  tf::Stamped<tf::Pose> getTFPose(const ros::Time &t, const std::string &fid);
   geometry_msgs::Pose & getPose();
 
   int getClearedCount() const;
@@ -57,7 +59,7 @@ public:
 public:
   double radius_;
   geometry_msgs::Pose pose_;
-
+  tf::Pose pose_tf_;
 protected:
   int cleared_count_;
 };

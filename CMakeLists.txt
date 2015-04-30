@@ -21,7 +21,6 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_add_library(${PROJECT_NAME}
   src/target_visualizer.cpp
   src/target.cpp
-  src/visibility_checker.cpp
   )
 rosbuild_add_executable(tracker src/target_tracker.cpp)
 target_link_libraries(tracker ${PROJECT_NAME})
