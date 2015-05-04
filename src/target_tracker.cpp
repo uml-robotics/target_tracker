@@ -262,7 +262,7 @@ void TargetTracker::update()
   {
     ros::Time t = ros::Time::now();
     if (!tf_listener_.waitForTransform(map_frame_id_, base_frame_id_,
-        t, ros::Duration(0.5)))
+        t, ros::Duration(5.0)))
     {
       ROS_WARN(
           "failed to look up transform from %s to %s... prognosis is grim.",
