@@ -355,6 +355,18 @@ void TargetTracker::experimentCallback(
   toMap(dynamic_reconfigure::BoolParameter, bool, config.bools, bools);
   toMap(dynamic_reconfigure::IntParameter, int, config.ints, ints);
   paused_ = bools["paused"];
+  if (!in_progress_ && bools["in_progress"])
+  {
+    ROS_WARN("NOT IN PROGRESS ==> RESETTING TARGETS COUNT");
+    for (auto amap = targets_.begin(); amap != targets_.end(); amap++)
+    {
+      for (auto atarget = amap->second.begin(); atarget != amap->second.end();
+          atarget++)
+      {
+        atarget->setClearedCount(0);
+      }
+    }
+  }
   in_progress_ = bools["in_progress"];
   int mapindex = ints["preset_id"];
   std::string current_map;
@@ -369,18 +381,6 @@ void TargetTracker::experimentCallback(
         paused_ ? "T" : "F", in_progress_ ? "T" : "F");
     current_map_ = current_map;
     loadTargets();
-  }
-  if (!in_progress_)
-  {
-    ROS_WARN("NOT IN PROGRESS ==> RESETTING TARGETS COUNT");
-    for (auto amap = targets_.begin(); amap != targets_.end(); amap++)
-    {
-      for (auto atarget = amap->second.begin(); atarget != amap->second.end();
-          atarget++)
-      {
-        atarget->setClearedCount(0);
-      }
-    }
   }
 }
 
